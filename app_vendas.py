@@ -475,10 +475,10 @@ if modo == "Nova Venda":
     col1, col2 = st.columns(2)
     
     with col1:
-        nome_consultor = st.text_input(
+        nome_consultor = st.selectbox(
             "Nome do Consultor",
-            key="nome_consultor",
-            placeholder="Digite o nome completo do consultor"
+            options=["José", "Diulie", "Jonathan"],
+            key="nome_consultor"
         )
     
     with col2:
