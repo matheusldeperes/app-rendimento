@@ -520,19 +520,6 @@ if not st.session_state.logado:
                 st.error("Usuário ou senha incorretos!")
     
     st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Informações de acesso (pode remover em produção)
-    with st.expander("ℹ️ Credenciais de Teste"):
-        st.info("""
-        **Consultores:**
-        - Usuário: jose | Senha: jose123
-        - Usuário: diulie | Senha: diulie123
-        - Usuário: jonathan | Senha: jonathan123
-        
-        **Gerente:**
-        - Usuário: gerente | Senha: gerente123
-        """)
-    
     st.stop()
 
 # Sidebar para gerenciar ações (apenas após login)
