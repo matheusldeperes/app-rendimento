@@ -17,6 +17,43 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Sistema de autenticação
+def verificar_login():
+    """Verifica credenciais de login"""
+    if 'logado' not in st.session_state:
+        st.session_state.logado = False
+        st.session_state.nivel_acesso = None
+        st.session_state.usuario = None
+
+def fazer_login(usuario, senha):
+    """Valida credenciais e define nível de acesso"""
+    # Credenciais podem ser configuradas em secrets.toml ou aqui
+    usuarios = {
+        # Consultores - acesso apenas a "Nova Venda"
+        "jose": {"senha": "jose123", "nivel": "consultor", "nome": "José"},
+        "diulie": {"senha": "diulie123", "nivel": "consultor", "nome": "Diulie"},
+        "jonathan": {"senha": "jonathan123", "nivel": "consultor", "nome": "Jonathan"},
+        # Gerente - acesso completo
+        "gerente": {"senha": "gerente123", "nivel": "gerente", "nome": "Gerente"}
+    }
+    
+    # Tenta carregar do secrets se disponível
+    if "usuarios" in st.secrets:
+        usuarios.update(dict(st.secrets["usuarios"]))
+    
+    if usuario in usuarios and usuarios[usuario]["senha"] == senha:
+        st.session_state.logado = True
+        st.session_state.nivel_acesso = usuarios[usuario]["nivel"]
+        st.session_state.usuario = usuarios[usuario]["nome"]
+        return True
+    return False
+
+def fazer_logout():
+    """Faz logout do sistema"""
+    st.session_state.logado = False
+    st.session_state.nivel_acesso = None
+    st.session_state.usuario = None
+
 # Ajuste de cores para Light/Dark do Streamlit
 _theme_base = st.get_option("theme.base") or "dark"
 _header_bg = "linear-gradient(135deg, #FFFFFF 0%, #1a1a1a 100%)" if _theme_base == "dark" else "linear-gradient(135deg, #000000 0%, #F5F5F5 100%)"
@@ -462,12 +499,67 @@ except FileNotFoundError:
     </div>
     """, unsafe_allow_html=True)
 
-# Sidebar para gerenciar ações
+# Inicializar sistema de login
+verificar_login()
+
+# Tela de Login
+if not st.session_state.logado:
+    st.markdown('<div style="max-width: 400px; margin: 50px auto;">', unsafe_allow_html=True)
+    st.markdown('<h2 class="section-header">🔐 LOGIN</h2>', unsafe_allow_html=True)
+    
+    usuario = st.text_input("Usuário", key="login_user")
+    senha = st.text_input("Senha", type="password", key="login_pass")
+    
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("Entrar", use_container_width=True):
+            if fazer_login(usuario, senha):
+                st.success(f"Bem-vindo(a), {st.session_state.usuario}!")
+                st.rerun()
+            else:
+                st.error("Usuário ou senha incorretos!")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Informações de acesso (pode remover em produção)
+    with st.expander("ℹ️ Credenciais de Teste"):
+        st.info("""
+        **Consultores:**
+        - Usuário: jose | Senha: jose123
+        - Usuário: diulie | Senha: diulie123
+        - Usuário: jonathan | Senha: jonathan123
+        
+        **Gerente:**
+        - Usuário: gerente | Senha: gerente123
+        """)
+    
+    st.stop()
+
+# Sidebar para gerenciar ações (apenas após login)
 st.sidebar.title("GERENCIAMENTO")
-modo = st.sidebar.radio(
-    "Selecione a ação:",
-    ["Nova Venda", "Visualizar Vendas", "Relatório de Comissões"]
-)
+
+# Mostrar usuário logado
+st.sidebar.markdown(f"**👤 Usuário:** {st.session_state.usuario}")
+st.sidebar.markdown(f"**🔑 Nível:** {st.session_state.nivel_acesso.upper()}")
+st.sidebar.divider()
+
+# Menu baseado no nível de acesso
+if st.session_state.nivel_acesso == "consultor":
+    # Consultores veem apenas "Nova Venda"
+    modo = "Nova Venda"
+    st.sidebar.info("✅ Nova Venda")
+    st.sidebar.markdown("🔒 *Outras opções restritas a gerentes*")
+else:
+    # Gerentes veem todas as opções
+    modo = st.sidebar.radio(
+        "Selecione a ação:",
+        ["Nova Venda", "Visualizar Vendas", "Relatório de Comissões"]
+    )
+
+st.sidebar.divider()
+if st.sidebar.button("🚪 Sair", use_container_width=True):
+    fazer_logout()
+    st.rerun()
 
 if modo == "Nova Venda":
     st.markdown('<h2 class="section-header">FORMULÁRIO DE VENDA</h2>', unsafe_allow_html=True)
@@ -475,11 +567,22 @@ if modo == "Nova Venda":
     col1, col2 = st.columns(2)
     
     with col1:
-        nome_consultor = st.selectbox(
-            "Nome do Consultor",
-            options=["José", "Diulie", "Jonathan"],
-            key="nome_consultor"
-        )
+        # Se for consultor, preencher automaticamente com o nome do usuário logado
+        if st.session_state.nivel_acesso == "consultor":
+            nome_consultor = st.session_state.usuario
+            st.text_input(
+                "Nome do Consultor",
+                value=nome_consultor,
+                disabled=True,
+                key="nome_consultor_display"
+            )
+        else:
+            # Se for gerente, permite selecionar qualquer consultor
+            nome_consultor = st.selectbox(
+                "Nome do Consultor",
+                options=["José", "Diulie", "Jonathan"],
+                key="nome_consultor"
+            )
     
     with col2:
         numero_os = st.text_input(
