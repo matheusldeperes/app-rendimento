@@ -753,17 +753,21 @@ elif modo == "Relatório de Comissões":
         # Tabela resumida por consultor
         st.markdown('<h3 class="section-header">RESUMO POR CONSULTOR</h3>', unsafe_allow_html=True)
         
+        # Agrupar dados
         resumo_consultor = df_relatorio.groupby("Consultor").agg({
             "Valor NF": "sum",
-            "Comissão": "sum",
-            "Valor NF": "count"  # Contar vendas
+            "Comissão": "sum"
         }).reset_index()
         
-        resumo_consultor.columns = ["Consultor", "Total NF", "Total Comissão", "Quantidade Vendas"]
+        resumo_consultor.columns = ["Consultor", "Total NF", "Total Comissão"]
+        
+        # Contar vendas por consultor e adicionar ao resumo
+        quantidade_vendas = df_relatorio.groupby("Consultor").size().reset_index(name="Quantidade")
+        resumo_consultor = resumo_consultor.merge(quantidade_vendas, on="Consultor")
         
         # Calcular Ticket Médio corretamente
-        resumo_consultor["Ticket Médio"] = resumo_consultor["Total NF"] / resumo_consultor["Quantidade Vendas"]
-        resumo_consultor = resumo_consultor.drop("Quantidade Vendas", axis=1)
+        resumo_consultor["Ticket Médio"] = resumo_consultor["Total NF"] / resumo_consultor["Quantidade"]
+        resumo_consultor = resumo_consultor.drop("Quantidade", axis=1)
         resumo_consultor = resumo_consultor.sort_values("Total Comissão", ascending=False)
         
         # Formatar para exibição
