@@ -755,11 +755,15 @@ elif modo == "Relatório de Comissões":
         
         resumo_consultor = df_relatorio.groupby("Consultor").agg({
             "Valor NF": "sum",
-            "Comissão": "sum"
+            "Comissão": "sum",
+            "Valor NF": "count"  # Contar vendas
         }).reset_index()
         
-        resumo_consultor.columns = ["Consultor", "Total NF", "Total Comissão"]
-        resumo_consultor["Ticket Médio"] = resumo_consultor["Total NF"] / df_relatorio.groupby("Consultor").size()
+        resumo_consultor.columns = ["Consultor", "Total NF", "Total Comissão", "Quantidade Vendas"]
+        
+        # Calcular Ticket Médio corretamente
+        resumo_consultor["Ticket Médio"] = resumo_consultor["Total NF"] / resumo_consultor["Quantidade Vendas"]
+        resumo_consultor = resumo_consultor.drop("Quantidade Vendas", axis=1)
         resumo_consultor = resumo_consultor.sort_values("Total Comissão", ascending=False)
         
         # Formatar para exibição
