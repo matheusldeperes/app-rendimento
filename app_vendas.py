@@ -145,13 +145,14 @@ RETORNO_MAP = {
 
 def parse_decimal_br(valor):
     """Converte valor para float.
-    - Números Python (int/float) vindos da planilha: usados diretamente.
-    - Strings da entrada do usuário: vírgula é decimal, ponto é milhar (removido).
+    - int/float Python: retorna diretamente (valores numéricos do gspread).
+    - String sem vírgula: converte diretamente com float() — cobre "373455.0" do gspread.
+    - String com vírgula: formato BR do usuário (ex: "1234,56") — remove ponto de milhar,
+      troca vírgula por ponto decimal.
     """
     if valor is None or valor == "":
         return 0.0
 
-    # Números do Python (retorno do gspread) — usa diretamente
     if isinstance(valor, (int, float)):
         return float(valor)
 
@@ -159,9 +160,15 @@ def parse_decimal_br(valor):
     if not s:
         return 0.0
 
-    # Remove pontos (separadores de milhar) e converte vírgula para ponto decimal
-    s = s.replace(".", "").replace(",", ".")
+    if "," not in s:
+        # Valor numérico vindo do gspread como string ("373455", "373455.0", "4698.28")
+        try:
+            return float(s)
+        except ValueError:
+            return 0.0
 
+    # Formato BR digitado pelo usuário: "1234,56" ou "1.234,56"
+    s = s.replace(".", "").replace(",", ".")
     try:
         return float(s)
     except ValueError:
