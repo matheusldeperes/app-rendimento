@@ -144,7 +144,12 @@ RETORNO_MAP = {
 }
 
 def parse_decimal_br(valor):
-    """Converte texto numérico (BR/US) para float com heurísticas seguras."""
+    """Converte valor numérico usando APENAS vírgula como separador decimal.
+
+    Regras:
+    - vírgula (,) = separador decimal
+    - ponto (.) = apenas separador de milhar (sempre removido)
+    """
     if valor is None or valor == "":
         return 0.0
 
@@ -155,36 +160,21 @@ def parse_decimal_br(valor):
     if not valor_str:
         return 0.0
 
-    # Remove caracteres estranhos
+    # Remove caracteres inválidos
     valor_str = "".join(ch for ch in valor_str if ch.isdigit() or ch in [",", ".", "-"])
+    if not valor_str:
+        return 0.0
 
-    # Se tiver os dois separadores, o último define casas decimais
-    if "," in valor_str and "." in valor_str:
-        if valor_str.rfind(",") > valor_str.rfind("."):
-            # BR: 1.234,56
-            valor_str = valor_str.replace(".", "").replace(",", ".")
-        else:
-            # US: 1,234.56
-            valor_str = valor_str.replace(",", "")
-    elif "," in valor_str:
-        # BR: 1234,56
-        valor_str = valor_str.replace(".", "").replace(",", ".")
-    elif "." in valor_str:
-        # Pode ser decimal (1234.56) ou milhar BR (1.234)
-        if valor_str.count(".") > 1:
-            # Ex.: 1.234.567 -> milhar
-            valor_str = valor_str.replace(".", "")
-        else:
-            parte_int, parte_dec = valor_str.split(".", 1)
-            # Regra para evitar erro de escala (ex.: 4698.285 virar 4.698.285)
-            # Trata como milhar somente quando padrão curto típico BR (até 3 dígitos antes).
-            if (
-                len(parte_dec) == 3
-                and parte_int.isdigit()
-                and parte_dec.isdigit()
-                and len(parte_int) <= 3
-            ):
-                valor_str = parte_int + parte_dec
+    # Ponto nunca é decimal neste sistema
+    valor_str = valor_str.replace(".", "")
+
+    # Mantém apenas a última vírgula como decimal
+    if valor_str.count(",") > 1:
+        partes = valor_str.split(",")
+        valor_str = "".join(partes[:-1]) + "," + partes[-1]
+
+    # Converte vírgula decimal para float interno
+    valor_str = valor_str.replace(",", ".")
 
     try:
         return float(valor_str)
@@ -229,13 +219,17 @@ def carregar_dados_vendas():
         for record in records:
             if record.get('ID'):
                 id_col = record['ID']
+                valor_nf = round(parse_decimal_br(record.get('Valor NF', 0)), 2)
+                retorno = record.get('Retorno', '')
+                percentual_calc, valor_comissao_calc = calcular_comissao(valor_nf, retorno)
+
                 dados[id_col] = {
                     'nome_consultor': record.get('Nome Consultor', ''),
                     'numero_os': record.get('Número OS', ''),
-                    'valor_nf': parse_decimal_br(record.get('Valor NF', 0)),
-                    'retorno': record.get('Retorno', ''),
-                    'percentual_comissao': parse_decimal_br(record.get('Percentual Comissão', 0)),
-                    'valor_comissao': parse_decimal_br(record.get('Valor Comissão', 0)),
+                    'valor_nf': valor_nf,
+                    'retorno': retorno,
+                    'percentual_comissao': percentual_calc,
+                    'valor_comissao': valor_comissao_calc,
                     'data_registro': record.get('Data Registro', ''),
                     'timestamp': record.get('Timestamp', '')
                 }
@@ -668,7 +662,7 @@ if modo == "Nova Venda":
     
     with col2:
         if valor_comissao > 0:
-            st.metric("Valor da Comissão", f"R$ {valor_comissao:.2f}")
+            st.metric("Valor da Comissão", formatar_moeda_br(valor_comissao))
         else:
             st.metric("Valor da Comissão", "R$ 0,00", delta="Insuficiente")
     
@@ -763,11 +757,11 @@ elif modo == "Relatório de Comissões":
         
         with col2:
             total_nf = df_relatorio["Valor NF"].sum()
-            st.metric("Valor Total NF", f"R$ {total_nf:,.2f}")
+            st.metric("Valor Total NF", formatar_moeda_br(total_nf))
         
         with col3:
             total_comissoes = df_relatorio["Comissão"].sum()
-            st.metric("Total de Comissões", f"R$ {total_comissoes:,.2f}")
+            st.metric("Total de Comissões", formatar_moeda_br(total_comissoes))
         
         with col4:
             num_consultores = df_relatorio["Consultor"].nunique()
