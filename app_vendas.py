@@ -144,52 +144,26 @@ RETORNO_MAP = {
 }
 
 def parse_decimal_br(valor):
-    """Converte valor numérico usando APENAS vírgula como separador decimal.
-
-    Regras:
-    - vírgula (,) = separador decimal
-    - ponto (.) = separador de milhar
-    - exceção de compatibilidade: valor vindo da planilha no formato 1234.56
+    """Converte valor para float.
+    - Números Python (int/float) vindos da planilha: usados diretamente.
+    - Strings da entrada do usuário: vírgula é decimal, ponto é milhar (removido).
     """
     if valor is None or valor == "":
         return 0.0
 
+    # Números do Python (retorno do gspread) — usa diretamente
     if isinstance(valor, (int, float)):
         return float(valor)
 
-    valor_str = str(valor).strip().replace("R$", "").replace(" ", "")
-    if not valor_str:
+    s = str(valor).strip().replace("R$", "").replace(" ", "")
+    if not s:
         return 0.0
 
-    # Remove caracteres inválidos
-    valor_str = "".join(ch for ch in valor_str if ch.isdigit() or ch in [",", ".", "-"])
-    if not valor_str:
-        return 0.0
-
-    # Compatibilidade com retorno do Google Sheets:
-    # quando vier sem vírgula e com ponto + 1-2 casas, tratar como decimal técnico.
-    if "," not in valor_str and "." in valor_str:
-        if valor_str.count(".") == 1:
-            parte_int, parte_dec = valor_str.split(".", 1)
-            if parte_int.lstrip("-").isdigit() and parte_dec.isdigit() and 1 <= len(parte_dec) <= 2:
-                try:
-                    return float(valor_str)
-                except ValueError:
-                    return 0.0
-
-    # Fora da regra acima, ponto é milhar
-    valor_str = valor_str.replace(".", "")
-
-    # Mantém apenas a última vírgula como decimal
-    if valor_str.count(",") > 1:
-        partes = valor_str.split(",")
-        valor_str = "".join(partes[:-1]) + "," + partes[-1]
-
-    # Converte vírgula decimal para float interno
-    valor_str = valor_str.replace(",", ".")
+    # Remove pontos (separadores de milhar) e converte vírgula para ponto decimal
+    s = s.replace(".", "").replace(",", ".")
 
     try:
-        return float(valor_str)
+        return float(s)
     except ValueError:
         return 0.0
 
@@ -261,19 +235,25 @@ def salvar_venda(nome_consultor, numero_os, valor_nf, retorno, percentual_comiss
         # Gera ID único
         id_venda = f"{nome_consultor}_{numero_os}_{datetime.now().isoformat()}"
         data_registro = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
+        # OS: salvar como número quando for só dígitos (evita aspa ' no Sheets)
+        try:
+            numero_os_salvo = int(numero_os.strip())
+        except (ValueError, AttributeError):
+            numero_os_salvo = str(numero_os).strip()
+
         row = [
             id_venda,
             nome_consultor,
-            numero_os,
-            round(parse_decimal_br(valor_nf), 2),
+            numero_os_salvo,
+            round(float(valor_nf), 2),
             retorno,
-            round(parse_decimal_br(percentual_comissao), 2),
-            round(parse_decimal_br(valor_comissao), 2),
+            round(float(percentual_comissao), 2),
+            round(float(valor_comissao), 2),
             data_registro,
             datetime.now().isoformat()
         ]
-        
+
         worksheet.append_row(row)
         return True
     except Exception as e:
