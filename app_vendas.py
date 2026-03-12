@@ -143,6 +143,27 @@ RETORNO_MAP = {
     "R10": 10
 }
 
+def parse_decimal_br(valor):
+    """Converte valores numéricos aceitando vírgula como separador decimal."""
+    if valor is None or valor == "":
+        return 0.0
+
+    if isinstance(valor, (int, float)):
+        return float(valor)
+
+    valor_str = str(valor).strip().replace("R$", "").replace(" ", "")
+    if not valor_str:
+        return 0.0
+
+    # Formato BR: 1.234,56 -> 1234.56
+    if "," in valor_str:
+        valor_str = valor_str.replace(".", "").replace(",", ".")
+
+    try:
+        return float(valor_str)
+    except ValueError:
+        return 0.0
+
 # Função para calcular comissão
 def calcular_comissao(valor_nf, retorno_selecionado):
     """
@@ -178,10 +199,10 @@ def carregar_dados_vendas():
                 dados[id_col] = {
                     'nome_consultor': record.get('Nome Consultor', ''),
                     'numero_os': record.get('Número OS', ''),
-                    'valor_nf': float(record.get('Valor NF', 0)) if record.get('Valor NF') else 0,
+                    'valor_nf': parse_decimal_br(record.get('Valor NF', 0)),
                     'retorno': record.get('Retorno', ''),
-                    'percentual_comissao': float(record.get('Percentual Comissão', 0)) if record.get('Percentual Comissão') else 0,
-                    'valor_comissao': float(record.get('Valor Comissão', 0)) if record.get('Valor Comissão') else 0,
+                    'percentual_comissao': parse_decimal_br(record.get('Percentual Comissão', 0)),
+                    'valor_comissao': parse_decimal_br(record.get('Valor Comissão', 0)),
                     'data_registro': record.get('Data Registro', ''),
                     'timestamp': record.get('Timestamp', '')
                 }
@@ -583,13 +604,16 @@ if modo == "Nova Venda":
     col1, col2 = st.columns(2)
     
     with col1:
-        valor_nf = st.number_input(
+        valor_nf_input = st.text_input(
             "Valor da NF (R$)",
             key="valor_nf",
-            min_value=0.0,
-            step=100.0,
-            format="%.2f"
+            placeholder="Ex: 1.234,56"
         )
+
+        valor_nf = parse_decimal_br(valor_nf_input)
+
+        if valor_nf_input and valor_nf <= 0:
+            st.warning("Informe um valor válido usando vírgula como decimal. Ex: 1500,75")
     
     with col2:
         retorno = st.selectbox(
