@@ -148,7 +148,8 @@ def parse_decimal_br(valor):
 
     Regras:
     - vírgula (,) = separador decimal
-    - ponto (.) = apenas separador de milhar (sempre removido)
+    - ponto (.) = separador de milhar
+    - exceção de compatibilidade: valor vindo da planilha no formato 1234.56
     """
     if valor is None or valor == "":
         return 0.0
@@ -165,7 +166,18 @@ def parse_decimal_br(valor):
     if not valor_str:
         return 0.0
 
-    # Ponto nunca é decimal neste sistema
+    # Compatibilidade com retorno do Google Sheets:
+    # quando vier sem vírgula e com ponto + 1-2 casas, tratar como decimal técnico.
+    if "," not in valor_str and "." in valor_str:
+        if valor_str.count(".") == 1:
+            parte_int, parte_dec = valor_str.split(".", 1)
+            if parte_int.lstrip("-").isdigit() and parte_dec.isdigit() and 1 <= len(parte_dec) <= 2:
+                try:
+                    return float(valor_str)
+                except ValueError:
+                    return 0.0
+
+    # Fora da regra acima, ponto é milhar
     valor_str = valor_str.replace(".", "")
 
     # Mantém apenas a última vírgula como decimal
