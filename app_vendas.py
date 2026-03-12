@@ -144,7 +144,7 @@ RETORNO_MAP = {
 }
 
 def parse_decimal_br(valor):
-    """Converte valores numéricos aceitando vírgula como separador decimal."""
+    """Converte texto numérico (BR/US) para float com heurísticas seguras."""
     if valor is None or valor == "":
         return 0.0
 
@@ -155,14 +155,39 @@ def parse_decimal_br(valor):
     if not valor_str:
         return 0.0
 
-    # Formato BR: 1.234,56 -> 1234.56
-    if "," in valor_str:
+    # Remove caracteres estranhos
+    valor_str = "".join(ch for ch in valor_str if ch.isdigit() or ch in [",", ".", "-"])
+
+    # Se tiver os dois separadores, o último define casas decimais
+    if "," in valor_str and "." in valor_str:
+        if valor_str.rfind(",") > valor_str.rfind("."):
+            # BR: 1.234,56
+            valor_str = valor_str.replace(".", "").replace(",", ".")
+        else:
+            # US: 1,234.56
+            valor_str = valor_str.replace(",", "")
+    elif "," in valor_str:
+        # BR: 1234,56
         valor_str = valor_str.replace(".", "").replace(",", ".")
+    elif "." in valor_str:
+        # Pode ser decimal (1234.56) ou milhar BR (1.234)
+        partes = valor_str.split(".")
+        if len(partes) > 2:
+            # Ex.: 1.234.567 -> milhar
+            valor_str = "".join(partes)
+        elif len(partes) == 2 and len(partes[1]) == 3 and partes[0].isdigit() and partes[1].isdigit():
+            # Ex.: 1.234 (milhar BR)
+            valor_str = partes[0] + partes[1]
 
     try:
         return float(valor_str)
     except ValueError:
         return 0.0
+
+def formatar_moeda_br(valor):
+    """Formata float para moeda BR: 1.234,56."""
+    valor_float = parse_decimal_br(valor)
+    return f"R$ {valor_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # Função para calcular comissão
 def calcular_comissao(valor_nf, retorno_selecionado):
@@ -666,9 +691,9 @@ elif modo == "Visualizar Vendas":
             dados_lista.append({
                 "Consultor": dados_venda["nome_consultor"],
                 "N° OS": dados_venda["numero_os"],
-                "Valor NF": f"R$ {dados_venda['valor_nf']:.2f}",
+                "Valor NF": formatar_moeda_br(dados_venda["valor_nf"]),
                 "Retorno": dados_venda["retorno"],
-                "Comissão": f"R$ {dados_venda['valor_comissao']:.2f}",
+                "Comissão": formatar_moeda_br(dados_venda["valor_comissao"]),
                 "Data": dados_venda["data_registro"],
                 "ID": id_venda
             })
@@ -796,9 +821,9 @@ elif modo == "Relatório de Comissões":
         
         # Formatar para exibição
         resumo_display = resumo_consultor.copy()
-        resumo_display["Total NF"] = resumo_display["Total NF"].apply(lambda x: f"R$ {x:,.2f}")
-        resumo_display["Total Comissão"] = resumo_display["Total Comissão"].apply(lambda x: f"R$ {x:,.2f}")
-        resumo_display["Ticket Médio"] = resumo_display["Ticket Médio"].apply(lambda x: f"R$ {x:,.2f}")
+        resumo_display["Total NF"] = resumo_display["Total NF"].apply(formatar_moeda_br)
+        resumo_display["Total Comissão"] = resumo_display["Total Comissão"].apply(formatar_moeda_br)
+        resumo_display["Ticket Médio"] = resumo_display["Ticket Médio"].apply(formatar_moeda_br)
         
         st.dataframe(resumo_display, use_container_width=True, hide_index=True)
         
@@ -828,7 +853,9 @@ elif modo == "Relatório de Comissões":
         
         with col2:
             st.write("")
-            st.dataframe(dist_retorno, use_container_width=True, hide_index=True)
+            dist_display = dist_retorno.copy()
+            dist_display["Total Comissão"] = dist_display["Total Comissão"].apply(formatar_moeda_br)
+            st.dataframe(dist_display, use_container_width=True, hide_index=True)
 
 # Footer
 st.divider()
