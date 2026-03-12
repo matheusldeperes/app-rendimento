@@ -156,7 +156,7 @@ def parse_decimal_br(valor):
     if isinstance(valor, (int, float)):
         return float(valor)
 
-    s = str(valor).strip().replace("R$", "").replace(" ", "")
+    s = str(valor).strip().replace("R$", "").replace(" ", "").replace("'", "")
     if not s:
         return 0.0
 
@@ -183,6 +183,10 @@ def formatar_decimal_br_sem_milhar(valor):
     """Formata número como texto BR sem separador de milhar: 3132,19."""
     valor_float = parse_decimal_br(valor)
     return f"{valor_float:.2f}".replace(".", ",")
+
+def formatar_decimal_br_literal(valor):
+    """Formata número como texto literal para o Sheets preservar vírgula decimal."""
+    return "'" + formatar_decimal_br_sem_milhar(valor)
 
 # Função para calcular comissão
 def calcular_comissao(valor_nf, retorno_selecionado):
@@ -253,10 +257,10 @@ def salvar_venda(nome_consultor, numero_os, valor_nf, retorno, percentual_comiss
             id_venda,
             nome_consultor,
             numero_os_salvo,
-            formatar_decimal_br_sem_milhar(valor_nf),
+            formatar_decimal_br_literal(valor_nf),
             retorno,
-            formatar_decimal_br_sem_milhar(percentual_comissao),
-            formatar_decimal_br_sem_milhar(valor_comissao),
+            formatar_decimal_br_literal(percentual_comissao),
+            formatar_decimal_br_literal(valor_comissao),
             data_registro,
             datetime.now().isoformat()
         ]
