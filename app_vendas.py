@@ -212,17 +212,13 @@ def carregar_dados_vendas():
         for record in records:
             if record.get('ID'):
                 id_col = record['ID']
-                valor_nf = round(parse_decimal_br(record.get('Valor NF', 0)), 2)
-                retorno = record.get('Retorno', '')
-                percentual_calc, valor_comissao_calc = calcular_comissao(valor_nf, retorno)
-
                 dados[id_col] = {
                     'nome_consultor': record.get('Nome Consultor', ''),
                     'numero_os': record.get('Número OS', ''),
-                    'valor_nf': valor_nf,
-                    'retorno': retorno,
-                    'percentual_comissao': percentual_calc,
-                    'valor_comissao': valor_comissao_calc,
+                    'valor_nf': parse_decimal_br(record.get('Valor NF', 0)),
+                    'retorno': record.get('Retorno', ''),
+                    'percentual_comissao': parse_decimal_br(record.get('Percentual Comissão', 0)),
+                    'valor_comissao': parse_decimal_br(record.get('Valor Comissão', 0)),
                     'data_registro': record.get('Data Registro', ''),
                     'timestamp': record.get('Timestamp', '')
                 }
