@@ -171,13 +171,20 @@ def parse_decimal_br(valor):
         valor_str = valor_str.replace(".", "").replace(",", ".")
     elif "." in valor_str:
         # Pode ser decimal (1234.56) ou milhar BR (1.234)
-        partes = valor_str.split(".")
-        if len(partes) > 2:
+        if valor_str.count(".") > 1:
             # Ex.: 1.234.567 -> milhar
-            valor_str = "".join(partes)
-        elif len(partes) == 2 and len(partes[1]) == 3 and partes[0].isdigit() and partes[1].isdigit():
-            # Ex.: 1.234 (milhar BR)
-            valor_str = partes[0] + partes[1]
+            valor_str = valor_str.replace(".", "")
+        else:
+            parte_int, parte_dec = valor_str.split(".", 1)
+            # Regra para evitar erro de escala (ex.: 4698.285 virar 4.698.285)
+            # Trata como milhar somente quando padrão curto típico BR (até 3 dígitos antes).
+            if (
+                len(parte_dec) == 3
+                and parte_int.isdigit()
+                and parte_dec.isdigit()
+                and len(parte_int) <= 3
+            ):
+                valor_str = parte_int + parte_dec
 
     try:
         return float(valor_str)
@@ -207,7 +214,8 @@ def calcular_comissao(valor_nf, retorno_selecionado):
     if valor_comissao < 0:
         valor_comissao = 0
     
-    return percentual, valor_comissao
+    # Arredonda resultados para 2 casas decimais
+    return percentual, round(valor_comissao, 2)
 
 # Função para carregar dados do Google Sheets
 def carregar_dados_vendas():
@@ -252,10 +260,10 @@ def salvar_venda(nome_consultor, numero_os, valor_nf, retorno, percentual_comiss
             id_venda,
             nome_consultor,
             numero_os,
-            valor_nf,
+            round(parse_decimal_br(valor_nf), 2),
             retorno,
-            percentual_comissao,
-            valor_comissao,
+            round(parse_decimal_br(percentual_comissao), 2),
+            round(parse_decimal_br(valor_comissao), 2),
             data_registro,
             datetime.now().isoformat()
         ]
