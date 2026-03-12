@@ -179,6 +179,11 @@ def formatar_moeda_br(valor):
     valor_float = parse_decimal_br(valor)
     return f"R$ {valor_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+def formatar_decimal_br_sem_milhar(valor):
+    """Formata número como texto BR sem separador de milhar: 3132,19."""
+    valor_float = parse_decimal_br(valor)
+    return f"{valor_float:.2f}".replace(".", ",")
+
 # Função para calcular comissão
 def calcular_comissao(valor_nf, retorno_selecionado):
     """
@@ -233,7 +238,6 @@ def salvar_venda(nome_consultor, numero_os, valor_nf, retorno, percentual_comiss
     """Salva uma venda no Google Sheets"""
     try:
         worksheet = obter_planilha_vendas()
-        records = worksheet.get_all_records()
         
         # Gera ID único
         id_venda = f"{nome_consultor}_{numero_os}_{datetime.now().isoformat()}"
@@ -249,15 +253,15 @@ def salvar_venda(nome_consultor, numero_os, valor_nf, retorno, percentual_comiss
             id_venda,
             nome_consultor,
             numero_os_salvo,
-            round(float(valor_nf), 2),
+            formatar_decimal_br_sem_milhar(valor_nf),
             retorno,
-            round(float(percentual_comissao), 2),
-            round(float(valor_comissao), 2),
+            formatar_decimal_br_sem_milhar(percentual_comissao),
+            formatar_decimal_br_sem_milhar(valor_comissao),
             data_registro,
             datetime.now().isoformat()
         ]
 
-        worksheet.append_row(row)
+        worksheet.append_row(row, value_input_option='RAW')
         return True
     except Exception as e:
         st.error(f"Erro ao salvar venda: {str(e)}")
